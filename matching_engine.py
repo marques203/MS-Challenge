@@ -14,6 +14,34 @@ class MatchingEngine:
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
 
+    def market_order(self, operation, quantity):
+        #Caso a operação seja de compra, vamos executar a ordem de compra contra as ordens de venda
+        if operation == "buy":
+            #Enquanto houver quantidade a ser comprada e ordens de venda disponíveis, executo a ordem
+            while quantity > 0 and self.sell_orders:
+                best_sell = self.sell_orders[0]
+                #Se a quantidade da ordem de compra for maior ou igual a quantidade da melhor ordem de venda,
+                #subtraimos a quantidade da ordem de compra e tiramos a ordem de venda da fila
+                if quantity >= best_sell[1]:
+                    quantity -= best_sell[1]
+                    heapq.heappop(self.sell_orders)
+                else:
+                    #subtraimos a quantidade da melhor ordem de venda e zeramos a quantidade da ordem agressiva
+                    best_sell[1] -= quantity
+                    quantity = 0
+
+        elif operation == "sell":
+            while quantity > 0 and self.buy_orders:
+                best_buy = self.buy_orders[0]
+                if quantity >= best_buy[1]:
+                    quantity -= best_buy[1]
+                    heapq.heappop(self.buy_orders)
+                else:
+                    best_buy[1] -= quantity
+                    quantity = 0
+        else:
+            raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
+
     def match_orders(self):
         while self.buy_orders and self.sell_orders:
             #Pegando as melhores ordens de compra e venda
