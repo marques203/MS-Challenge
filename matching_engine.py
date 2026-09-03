@@ -69,3 +69,12 @@ class MatchingEngine:
                     #se as quantidades forem iguais, removemos ambas as ordens
                     heapq.heappop(self.buy_orders)
                     heapq.heappop(self.sell_orders)
+
+    def print_order_book(self):
+        print("Livro de Ordens:")
+        print("Ordens de Compra:")
+        for order in sorted(self.buy_orders, key=lambda x: (-x[0], x[1])):
+            print(f"Preço: {-order[0]}, Quantidade: {order[2]}, ID: {order[1]}")
+        print("Ordens de Venda:")
+        for order in sorted(self.sell_orders, key=lambda x: (x[0], x[1])):
+            print(f"Preço: {order[0]}, Quantidade: {order[2]}, ID: {order[1]}")
