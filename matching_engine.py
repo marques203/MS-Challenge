@@ -49,7 +49,7 @@ class MatchingEngine:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
 
     def match_orders(self):
-        while self.buy_orders and self.sell_orders:
+        if self.buy_orders and self.sell_orders:
             #Pegando as melhores ordens de compra e venda
             best_buy = -self.buy_orders[0][0]
             best_sell = self.sell_orders[0][0]
