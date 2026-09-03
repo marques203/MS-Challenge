@@ -4,22 +4,24 @@ class MatchingEngine:
     def __init__(self):
         self.buy_orders = []
         self.sell_orders = []
-        self.order_id_counter = 0
+        self.buy_order_id_counter = 0
+        self.sell_order_id_counter = 0
 
     def limit_order(self, operation, order):
         if operation == "buy":
-            self.order_id_counter += 1
+            self.buy_order_id_counter += 1
             # Invertendo o preço da ordem de compra para que o heapq funcione como uma max-heap
             order[0] = -order[0]
-            order_plus_id = (order[0], self.order_id_counter, order[1])
+            order_plus_id = [order[0], self.buy_order_id_counter, order[1]]
             heapq.heappush(self.buy_orders, order_plus_id)
         elif operation == "sell":
-            self.order_id_counter += 1
-            order_plus_id = (order[0], self.order_id_counter, order[1])
+            self.sell_order_id_counter += 1
+            order_plus_id = [order[0], self.sell_order_id_counter, order[1]]
             heapq.heappush(self.sell_orders, order_plus_id)
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
 
+    #O(nlog(n))
     def market_order(self, operation, quantity):
         #Caso a operação seja de compra, vamos executar a ordem de compra contra as ordens de venda
         if operation == "buy":
@@ -48,6 +50,8 @@ class MatchingEngine:
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
 
+
+    #O(log(n))
     def match_orders(self):
         if self.buy_orders and self.sell_orders:
             #Pegando as melhores ordens de compra e venda
@@ -69,12 +73,38 @@ class MatchingEngine:
                     #se as quantidades forem iguais, removemos ambas as ordens
                     heapq.heappop(self.buy_orders)
                     heapq.heappop(self.sell_orders)
-
+    #O(n.log(n))
     def print_order_book(self):
         print("Livro de Ordens:")
         print("Ordens de Compra:")
         for order in sorted(self.buy_orders, key=lambda x: (-x[0], x[1])):
-            print(f"Preço: {-order[0]}, Quantidade: {order[2]}, ID: {order[1]}")
+            print(f"Preço: {-order[0]}, Quantidade: {order[2]}, ID: b{order[1]}")
         print("Ordens de Venda:")
         for order in sorted(self.sell_orders, key=lambda x: (x[0], x[1])):
-            print(f"Preço: {order[0]}, Quantidade: {order[2]}, ID: {order[1]}")
+            print(f"Preço: {order[0]}, Quantidade: {order[2]}, ID: s{order[1]}")
+
+    #O(n)
+    def cancel_order(self, order_id):
+        #caso o inicio do identificador seja de uma ordem de compra
+        if order_id.startswith("b"):
+            order_id_num = int(order_id[1:])
+            #procurar na lista de ordens o numero do identificador
+            for i, order in enumerate(self.buy_orders):
+                #caso ache, remove a ordem da lista e refaz o heap: 
+                if order[1] == order_id_num:
+                    self.buy_orders.pop(i)
+                    heapq.heapify(self.buy_orders)
+                    break
+
+        elif order_id.startswith("s"):
+            order_id_num = int(order_id[1:])
+            for i, order in enumerate(self.sell_orders):
+                if order[1] == order_id_num:
+                    self.sell_orders.pop(i)
+                    heapq.heapify(self.sell_orders)
+                    break
+        else:
+            raise ValueError("ID de ordem inválido.")
+
+
+    
