@@ -105,6 +105,34 @@ class MatchingEngine:
                     break
         else:
             raise ValueError("ID de ordem inválido.")
+    #O(n)
+    def order_modify(self, order_id, new_price = None, new_quantity = None):
+        if order_id.startswith("b"):
+            order_id_num = int(order_id[1:])
+            #Itera sobre a lista de orders
+            for i, order in enumerate(self.buy_orders):
+                #Caso ache o identificador, atualiza o preço e a quantidade da ordem e refaz o heap
+                if order[1] == order_id_num:
+                    #Caso o preço esteja no input da modificação, atualiza o preço da ordem (invertido para max-heap)
+                    if new_price is not None:
+                        self.buy_orders[i][0] = -new_price  # Atualiza o preço (invertido para max-heap)
+                    if new_quantity is not None:
+                        self.buy_orders[i][2] = new_quantity  # Atualiza a quantidade
+                    heapq.heapify(self.buy_orders)  # Reorganiza o heap
+                    break
+        elif order_id.startswith("s"):
+            order_id_num = int(order_id[1:])
+            for i, order in enumerate(self.sell_orders):
+                if order[1] == order_id_num:
+                    #Caso o preço esteja no input da modificação, atualiza o preço da ordem
+                    if new_price is not None:
+                        self.sell_orders[i][0] = new_price  # Atualiza o preço
+                    if new_quantity is not None:
+                        self.sell_orders[i][2] = new_quantity  # Atualiza a quantidade
+                    heapq.heapify(self.sell_orders)  # Reorganiza o heap
+                    break
+        else:
+            raise ValueError("ID de ordem inválido.")
 
 
     
