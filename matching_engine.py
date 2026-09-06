@@ -8,8 +8,7 @@ class MatchingEngine:
         #mas saem do livro visível até a referência reaparecer.
         self.inactive_buy_orders = []
         self.inactive_sell_orders = []
-        self.buy_order_id_counter = 0
-        self.sell_order_id_counter = 0
+        self.order_id_counter = 0
         self.reference_buy_price = None
         self.reference_sell_price = None
 
@@ -108,23 +107,54 @@ class MatchingEngine:
         heapq.heapify(self.buy_orders)
         heapq.heapify(self.sell_orders)
 
+    #O(log(n))
+    def __execute_best_pair(self):
+        #Executa no máximo um par de ordens. Devolve True se houve trade.
+        if not self.buy_orders or not self.sell_orders:
+            return False
+
+        best_buy = self.buy_orders[0]
+        best_sell = self.sell_orders[0]
+        buy_price = -best_buy[0]
+        sell_price = best_sell[0]
+
+        #Sem sobreposição de preços não há negócio.
+        if buy_price < sell_price:
+            return False
+
+        #O preço do trade é o da ordem passiva, ou seja, a que chegou primeiro.
+        #Como o identificador é um contador único para os dois lados, o menor
+        #identificador é sempre a ordem mais antiga.
+        trade_price = buy_price if best_buy[1] < best_sell[1] else sell_price
+        trade_quantity = min(best_buy[2], best_sell[2])
+        print(f"Trade, price: {trade_price}, qty: {trade_quantity}")
+
+        #Alterar a quantidade não quebra a invariante do heap, porque a
+        #quantidade não faz parte da chave de ordenação.
+        best_buy[2] -= trade_quantity
+        best_sell[2] -= trade_quantity
+        if best_buy[2] == 0:
+            heapq.heappop(self.buy_orders)
+        if best_sell[2] == 0:
+            heapq.heappop(self.sell_orders)
+        return True
 
     #O(log(n))
     def limit_order(self, operation, order, peg = None):
         if operation == "buy":
-            self.buy_order_id_counter += 1
+            self.order_id_counter += 1
             # Invertendo o preço da ordem de compra para que o heapq funcione como uma max-heap.
             # Usamos uma variável local para não alterar a lista recebida pelo chamador.
             price = -order[0]
-            order_plus_id = [price, self.buy_order_id_counter, order[1], peg]
+            order_plus_id = [price, self.order_id_counter, order[1], peg]
             heapq.heappush(self.buy_orders, order_plus_id)
         elif operation == "sell":
-            self.sell_order_id_counter += 1
-            order_plus_id = [order[0], self.sell_order_id_counter, order[1], peg]
+            self.order_id_counter += 1
+            order_plus_id = [order[0], self.order_id_counter, order[1], peg]
             heapq.heappush(self.sell_orders, order_plus_id)
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
-        self.__update_peg_orders()
+        self.match_orders()
 
     #O(nlog(n))
     def market_order(self, operation, quantity):
@@ -154,31 +184,15 @@ class MatchingEngine:
                     quantity = 0
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
-        self.__update_peg_orders()
+        self.match_orders()
 
-    #O(log(n))
     def match_orders(self):
-        if self.buy_orders and self.sell_orders:
-            #Pegando as melhores ordens de compra e venda
-            best_buy = -self.buy_orders[0][0]
-            best_sell = self.sell_orders[0][0]
-            #Compatibilidade de preços
-            if best_buy >= best_sell:
-                #Se a quantidade da ordem de compra for maior que a quantidade da ordem de venda
-                if self.buy_orders[0][2] > self.sell_orders[0][2]:
-                    #Executando a ordem de compra contra a ordem de venda
-                    self.buy_orders[0][2] -= self.sell_orders[0][2]
-                    heapq.heappop(self.sell_orders)
-                #Se a quantidade da ordem de venda for maior que a quantidade da ordem de compra
-                elif self.buy_orders[0][2] < self.sell_orders[0][2]:
-                    #Executando a ordem de venda contra a ordem de compra
-                    self.sell_orders[0][2] -= self.buy_orders[0][2]
-                    heapq.heappop(self.buy_orders)
-                else:
-                    #se as quantidades forem iguais, removemos ambas as ordens
-                    heapq.heappop(self.buy_orders)
-                    heapq.heappop(self.sell_orders)
-        self.__update_peg_orders()
+        #Executa dos os pares de ordens possíveis até que não haja mais sobreposição de preços.
+        while True:
+            self.__update_peg_orders()
+            if not self.__execute_best_pair():
+                break
+
 
     #O(n.log(n))
     def print_order_book(self):
@@ -241,7 +255,7 @@ class MatchingEngine:
                     raise ValueError("ID de ordem de venda não encontrado.")
         else:
             raise ValueError("ID de ordem inválido.")
-        self.__update_peg_orders()
+        self.match_orders()
 
     #O(n)
     def order_modify(self, order_id, new_price = None, new_quantity = None):
@@ -281,7 +295,7 @@ class MatchingEngine:
                 raise ValueError("ID de ordem de venda não encontrado.")
         else:
             raise ValueError("ID de ordem inválido.")
-        self.__update_peg_orders()
+        self.match_orders()
 
     #O(n)
     def peg_order(self, reference, operation, quantity):
