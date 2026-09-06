@@ -253,7 +253,10 @@ class MatchingEngine:
                 if order[1] == order_id_num:
                     #Caso o preço esteja no input da modificação, atualiza o preço da ordem (invertido para max-heap)
                     if new_price is not None:
-                        self.buy_orders[i][0] = -new_price  # Atualiza o preço (invertido para max-heap)
+                        if order[3]:
+                            raise ValueError("Não é possível modificar o preço de uma ordem pegged.")
+                        else:
+                            self.buy_orders[i][0] = -new_price  # Atualiza o preço (invertido para max-heap)
                     if new_quantity is not None:
                         self.buy_orders[i][2] = new_quantity  # Atualiza a quantidade
                     heapq.heapify(self.buy_orders)  # Reorganiza o heap
@@ -266,7 +269,10 @@ class MatchingEngine:
                 if order[1] == order_id_num:
                     #Caso o preço esteja no input da modificação, atualiza o preço da ordem
                     if new_price is not None:
-                        self.sell_orders[i][0] = new_price  # Atualiza o preço
+                        if order[3]:
+                            raise ValueError("Não é possível modificar o preço de uma ordem pegged.")
+                        else:
+                            self.sell_orders[i][0] = new_price  # Atualiza o preço
                     if new_quantity is not None:
                         self.sell_orders[i][2] = new_quantity  # Atualiza a quantidade
                     heapq.heapify(self.sell_orders)  # Reorganiza o heap
