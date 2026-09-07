@@ -386,28 +386,6 @@ O(n), e uma sequência de n comandos custa O(n²).
 Na prática, 5000 ordens são processadas em 1,4 s — suficiente para o escopo do
 projeto, que não exige escalabilidade.
 
-## Caminho para O(log n)
-
-O gargalo é a varredura linear em `__update_reference_prices` e os `heapify`
-O(n). A estrutura adequada seria:
-
-- **`SortedDict[preço] → deque[ordem]`** por lado, dando O(log n) para
-  inserção e O(1) para acessar o melhor preço, com FIFO natural dentro do
-  nível pela `deque`.
-- **Referências mantidas incrementalmente** em vez de recalculadas: um
-  contador de ordens não-peg por nível de preço permitiria atualizar o bid e o
-  offer em O(log n) quando um nível esvazia.
-- **`dict[identificador] → ordem`** para cancelamento e alteração em O(1) em
-  vez de busca linear.
-- **Lista separada de pegs**, para reprecificar em O(k) em vez de varrer as n
-  ordens do livro.
-
-Com isso, `limit_order` e `cancel_order` cairiam para O(log n), e
-`market_order` para O(f log n).
-
-A escolha por heaps foi consciente: o enunciado é explícito em não exigir
-escalabilidade, e a estrutura de lista com preço negado mantém a prioridade
-preço-tempo em uma única comparação lexicográfica, sem dependências externas.
 
 ---
 
@@ -442,23 +420,6 @@ Nenhuma violação foi observada em 59.000 operações.
 
 ---
 
-# Limitações conhecidas
-
-**Complexidade quadrática.** Discutida acima. Aceitável para o escopo, com
-caminho de melhoria identificado.
-
-**Sem teto de iterações no `match_orders`.** O laço é `while True`. A
-terminação é garantida pela decisão D8, mas se essa garantia for quebrada por
-uma alteração futura, a falha será um travamento silencioso em vez de uma
-exceção. Um contador máximo de iterações converteria isso em erro visível.
-
-**Assimetria na agregação da saída.** Market agrega por nível; limit agressiva
-imprime por par. Ver D4.
-
-**Alteração de quantidade não afeta prioridade.** O enunciado só define o caso
-do preço. A convenção de mercado seria perder prioridade ao aumentar e
-mantê-la ao reduzir; optamos por manter em ambos os casos, por consistência
-com a leitura adotada do requisito 4.
 
 **Apresentação acoplada à engine.** As mensagens `Trade`, `Order created` e
 `Order cancelled` são impressas pela própria engine. O desenho mais limpo seria
