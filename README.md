@@ -419,10 +419,3 @@ projeto, que não exige escalabilidade.
 Nenhuma violação foi observada em 59.000 operações.
 
 ---
-
-
-**Apresentação acoplada à engine.** As mensagens `Trade`, `Order created` e
-`Order cancelled` são impressas pela própria engine. O desenho mais limpo seria
-a engine devolver uma lista de eventos e o `main.py` cuidar de toda a
-formatação — mas como os trades nascem dentro do laço de matching, isso
-exigiria refatorar o fluxo de retorno. Não compensa no escopo atual.
