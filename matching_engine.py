@@ -249,20 +249,20 @@ class MatchingEngine:
         #devolve o maior preço real primeiro, que é a ordenação correta do bid.
         for order in sorted(self.buy_orders, key=lambda x: (x[0], x[1])):
             peg_tag = f", peg: {order[3]}" if order[3] else ""
-            print(f"Preço: {-order[0]}, Quantidade: {order[2]}, ID: b{order[1]}{peg_tag}")
+            print(f"Price: {-order[0]}, qty: {order[2]}, ID: b{order[1]}{peg_tag}")
         print("Ordens de Venda:")
         for order in sorted(self.sell_orders, key=lambda x: (x[0], x[1])):
             peg_tag = f", peg: {order[3]}" if order[3] else ""
-            print(f"Preço: {order[0]}, Quantidade: {order[2]}, ID: s{order[1]}{peg_tag}")
+            print(f"Price: {order[0]}, qty: {order[2]}, ID: s{order[1]}{peg_tag}")
 
         #Ordens pegged sem referência continuam existindo, apenas fora do livro.
         #Mostrar essa lista evita que elas sumam da vista sem explicação.
         if self.inactive_buy_orders or self.inactive_sell_orders:
             print("Ordens pegged inativas (sem referência):")
             for order in sorted(self.inactive_buy_orders, key=lambda x: x[1]):
-                print(f"Compra, Quantidade: {order[2]}, ID: b{order[1]}, peg: {order[3]}")
+                print(f"Compra, qty: {order[2]}, ID: b{order[1]}, peg: {order[3]}")
             for order in sorted(self.inactive_sell_orders, key=lambda x: x[1]):
-                print(f"Venda, Quantidade: {order[2]}, ID: s{order[1]}, peg: {order[3]}")
+                print(f"Venda, qty: {order[2]}, ID: s{order[1]}, peg: {order[3]}")
 
 
     #O(n)
