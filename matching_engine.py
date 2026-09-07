@@ -150,12 +150,21 @@ class MatchingEngine:
             price = -order[0]
             order_plus_id = [price, self.order_id_counter, order[1], peg]
             heapq.heappush(self.buy_orders, order_plus_id)
+            prefixo = "b"
         elif operation == "sell":
             self.order_id_counter += 1
             order_plus_id = [order[0], self.order_id_counter, order[1], peg]
             heapq.heappush(self.sell_orders, order_plus_id)
+            prefixo = "s"
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
+
+        #A confirmação vem antes do matching para que a saída fique em ordem
+        #cronológica: a ordem é criada e só depois pode gerar trades.
+        peg_tag = f"peg {peg} " if peg else ""
+        print(f"Order created: {peg_tag}{operation} {order[1]} @ {order[0]} "
+              f"{prefixo}{self.order_id_counter}")
+
         self.match_orders()
 
     #O(n².log(n)) no pior caso, por causa da reprecificação a cada fill
@@ -220,10 +229,12 @@ class MatchingEngine:
             print(f"Trade, price: {trade_price}, qty: {trade_quantity}")
 
         self.match_orders()
-        
+
 
     def match_orders(self):
-        #Executa dos os pares de ordens possíveis até que não haja mais sobreposição de preços.
+        #Executa todos os pares de ordens possíveis até que não haja mais
+        #sobreposição de preços. Reprecificar as pegs pode criar novos cruzamentos,
+        #e cada trade pode mudar o topo do livro e disparar nova reprecificação.
         while True:
             self.__update_peg_orders()
             if not self.__execute_best_pair():
@@ -291,6 +302,13 @@ class MatchingEngine:
                     raise ValueError("ID de ordem de venda não encontrado.")
         else:
             raise ValueError("ID de ordem inválido.")
+
+        #Chegar até aqui significa que a ordem foi de fato removida, porque
+        #os casos de identificador inválido ou inexistente levantam exceção.
+        print("Order cancelled")
+
+        #Cancelar não pode criar cruzamento (as referências só pioram), mas a
+        #reprecificação das pegs é obrigatória e acontece dentro do match_orders.
         self.match_orders()
 
     #O(n)
