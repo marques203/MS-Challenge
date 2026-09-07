@@ -141,6 +141,8 @@ class MatchingEngine:
 
     #O(log(n))
     def limit_order(self, operation, order, peg = None):
+        if order[1] <= 0:
+            raise ValueError("Quantidade deve ser positiva.")
         if operation == "buy":
             self.order_id_counter += 1
             # Invertendo o preço da ordem de compra para que o heapq funcione como uma max-heap.
@@ -156,35 +158,69 @@ class MatchingEngine:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
         self.match_orders()
 
-    #O(nlog(n))
+    #O(n².log(n)) no pior caso, por causa da reprecificação a cada fill
     def market_order(self, operation, quantity):
-        #Caso a operação seja de compra, vamos executar a ordem de compra contra as ordens de venda
+        if quantity <= 0:
+            raise ValueError("Quantidade deve ser positiva.")
+
+        #Fills consecutivos no mesmo preço são agregados numa única linha de saída,
+        #como no exemplo do enunciado. Ao mudar de nível de preço, a linha é impressa.
+        trade_price = None
+        trade_quantity = 0
+
         if operation == "buy":
-            #Enquanto houver quantidade a ser comprada e ordens de venda disponíveis, executo a ordem
-            while quantity > 0 and self.sell_orders:
+            while quantity > 0:
+                #Cada fill pode mudar o offer, o que reprecifica ou inativa as pegs.
+                #Sem isso a próxima iteração negociaria contra um preço desatualizado.
+                self.__update_peg_orders()
+                #A verificação vem depois da reprecificação porque ela pode inativar
+                #pegs e esvaziar o lado do livro no meio da varredura.
+                if not self.sell_orders:
+                    break
+
                 best_sell = self.sell_orders[0]
-                #Se a quantidade da ordem de compra for maior ou igual a quantidade da melhor ordem de venda,
-                #subtraimos a quantidade da ordem de compra e tiramos a ordem de venda da fila
-                if quantity >= best_sell[2]:
-                    quantity -= best_sell[2]
+                executed = min(quantity, best_sell[2])
+
+                if trade_price is not None and best_sell[0] != trade_price:
+                    print(f"Trade, price: {trade_price}, qty: {trade_quantity}")
+                    trade_quantity = 0
+                trade_price = best_sell[0]
+                trade_quantity += executed
+
+                quantity -= executed
+                best_sell[2] -= executed
+                if best_sell[2] == 0:
                     heapq.heappop(self.sell_orders)
-                else:
-                    #subtraimos a quantidade da melhor ordem de venda e zeramos a quantidade da ordem agressiva
-                    best_sell[2] -= quantity
-                    quantity = 0
 
         elif operation == "sell":
-            while quantity > 0 and self.buy_orders:
+            while quantity > 0:
+                self.__update_peg_orders()
+                if not self.buy_orders:
+                    break
+
                 best_buy = self.buy_orders[0]
-                if quantity >= best_buy[2]:
-                    quantity -= best_buy[2]
+                executed = min(quantity, best_buy[2])
+
+                if trade_price is not None and -best_buy[0] != trade_price:
+                    print(f"Trade, price: {trade_price}, qty: {trade_quantity}")
+                    trade_quantity = 0
+                trade_price = -best_buy[0]
+                trade_quantity += executed
+
+                quantity -= executed
+                best_buy[2] -= executed
+                if best_buy[2] == 0:
                     heapq.heappop(self.buy_orders)
-                else:
-                    best_buy[2] -= quantity
-                    quantity = 0
         else:
             raise ValueError("Operação inválida. Use 'buy' ou 'sell'.")
+
+        #Descarrega o último nível acumulado.
+        #A quantidade não executada é descartada: uma market order não descansa no livro.
+        if trade_price is not None:
+            print(f"Trade, price: {trade_price}, qty: {trade_quantity}")
+
         self.match_orders()
+        
 
     def match_orders(self):
         #Executa dos os pares de ordens possíveis até que não haja mais sobreposição de preços.
@@ -272,11 +308,26 @@ class MatchingEngine:
                         else:
                             self.buy_orders[i][0] = -new_price  # Atualiza o preço (invertido para max-heap)
                     if new_quantity is not None:
-                        self.buy_orders[i][2] = new_quantity  # Atualiza a quantidade
+                        if new_quantity <= 0:
+                            raise ValueError("Quantidade deve ser positiva.")
+                        else:
+                            self.buy_orders[i][2] = new_quantity  # Atualiza a quantidade
                     heapq.heapify(self.buy_orders)  # Reorganiza o heap
                     break
             else:
-                raise ValueError("ID de ordem de compra não encontrado.")
+                #A ordem também pode estar inativa por falta de referência.
+                for i, order in enumerate(self.inactive_buy_orders):
+                    if order[1] == order_id_num:
+                        if new_price is not None:
+                            raise ValueError("Não é possível modificar o preço de uma ordem pegged inativa.")
+                        if new_quantity is not None:
+                            if new_quantity <= 0:
+                                raise ValueError("Quantidade deve ser positiva.")
+                            else:
+                                self.inactive_buy_orders[i][2] = new_quantity  # Atualiza a quantidade
+                        break
+                else:
+                    raise ValueError("ID de ordem de compra não encontrado.")
         elif order_id.startswith("s"):
             order_id_num = int(order_id[1:])
             for i, order in enumerate(self.sell_orders):
@@ -288,17 +339,34 @@ class MatchingEngine:
                         else:
                             self.sell_orders[i][0] = new_price  # Atualiza o preço
                     if new_quantity is not None:
-                        self.sell_orders[i][2] = new_quantity  # Atualiza a quantidade
+                        if new_quantity <= 0:
+                            raise ValueError("Quantidade deve ser positiva.")
+                        else:
+                            self.sell_orders[i][2] = new_quantity  # Atualiza a quantidade
                     heapq.heapify(self.sell_orders)  # Reorganiza o heap
                     break
             else:
-                raise ValueError("ID de ordem de venda não encontrado.")
+                #A ordem também pode estar inativa por falta de referência.
+                for i, order in enumerate(self.inactive_sell_orders):
+                    if order[1] == order_id_num:
+                        if new_price is not None:
+                            raise ValueError("Não é possível modificar o preço de uma ordem pegged inativa.")
+                        if new_quantity is not None:
+                            if new_quantity <= 0:
+                                raise ValueError("Quantidade deve ser positiva.")
+                            else:
+                                self.inactive_sell_orders[i][2] = new_quantity  # Atualiza a quantidade
+                        break
+                else:
+                    raise ValueError("ID de ordem de venda não encontrado.")
         else:
             raise ValueError("ID de ordem inválido.")
         self.match_orders()
 
     #O(n)
     def peg_order(self, reference, operation, quantity):
+        if quantity <= 0:
+            raise ValueError("Quantidade deve ser positiva.")
         if reference not in ("bid", "offer"):
             raise ValueError("Referência inválida. Use 'bid' ou 'offer'.")
         if operation not in ("buy", "sell"):
